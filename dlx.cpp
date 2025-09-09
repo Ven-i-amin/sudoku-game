@@ -2,8 +2,11 @@
 #include <vector>
 #include <stack>
 #include <algorithm>
+#include <set>
 
 using std::vector;
+
+#pragma region Construct and delete
 
 template <typename T>
 Dlx<T>::Dlx(
@@ -53,9 +56,14 @@ Dlx<T>::~Dlx() {
     delete nodeMatrix;
 }
 
+#pragma endregion
+
+#pragma region Pops
+
 template <typename T>
 vector<bool>& Dlx<T>::popRow(int index) {
     Node *node = startNode;
+    Node::DeleteReason *reason = new Node::ROW_DELETE;
     vector<bool> row(rowSize);
 
     for (int i = 0; i < index; i++) {
@@ -74,6 +82,7 @@ vector<bool>& Dlx<T>::popRow(int index) {
 
         row[i] = node->value;
         node->deleteStep = deleteStep;
+        node->deleteReason = reason;
         node = node->right;
     }
 
@@ -85,6 +94,7 @@ vector<bool>& Dlx<T>::popRow(int index) {
 template <typename T>
 vector<bool>& Dlx<T>::popRow(T *rowKey) {
     Node *node = startNode;
+    Node::DeleteReason *reason = new Node::ROW_DELETE;
     vector<bool> row(rowSize);
 
     while (node->rowKey != rowKey) {
@@ -103,6 +113,7 @@ vector<bool>& Dlx<T>::popRow(T *rowKey) {
 
         row[i] = node->value;
         node->deleteStep = deleteStep;
+        node->deleteReason = reason;
         node = node->right;
     }
 
@@ -114,6 +125,7 @@ vector<bool>& Dlx<T>::popRow(T *rowKey) {
 template <typename T>
 vector<bool>& Dlx<T>::popCol(int index) {
     Node *node = startNode;
+    Node::DeleteReason *reason = new Node::COL_DELETE;
     vector<bool> col(colSize);
 
     for (int i = 0; i < index; i++) {
@@ -132,6 +144,7 @@ vector<bool>& Dlx<T>::popCol(int index) {
 
         col[i] = node->value;
         node->deleteStep = deleteStep;
+        node->deleteReason = reason;
         node = node->right;
     }
 
@@ -143,6 +156,7 @@ vector<bool>& Dlx<T>::popCol(int index) {
 template <typename T>
 vector<bool>& Dlx<T>::popCol(T *colKey) {
     Node *node = startNode;
+    Node::DeleteReason *reason = new Node::COL_DELETE;
     vector<bool> col(rowSize);
 
     while (node->colKey != colKey) {
@@ -161,6 +175,7 @@ vector<bool>& Dlx<T>::popCol(T *colKey) {
 
         col[i] = node->value;
         node->deleteStep = deleteStep;
+        node->deleteReason = reason;
         node = node->right;
     }
 
@@ -169,16 +184,19 @@ vector<bool>& Dlx<T>::popCol(T *colKey) {
     return col;
 }
 
+#pragma endregion
+
+#pragma region Row Getters and Setters
 template <typename T>
 vector<bool>& Dlx<T>::getRow(int index) {
     Node *node = startNode;
     vector<bool> row(rowSize);
 
-    for (int i = 0; i < index) {
+    for (size_t i = 0; i < index) {
         node = node->down;
     }
 
-    for (int i = 0; i < colSize; i++) {
+    for (size_t i = 0; i < colSize; i++) {
         row[i] = node->value;
         node = node->right;
     }
@@ -195,7 +213,7 @@ vector<bool>& Dlx<T>::getRow(T *rowKey) {
         node = node->down;
     }
 
-    for (int i = 0; i < colSize; i++) {
+    for (size_t i = 0; i < colSize; i++) {
         row[i] = node->value;
         node = node->right;
     }
@@ -207,16 +225,14 @@ template <typename T>
 void Dlx<T>::setRow(int index, vector<bool> newValues) {
     Node *node = startNode;
 
-    for (int i = 0; i < index; i++) {
+    for (size_t i = 0; i < index; i++) {
         node = node->down;
     }
 
-    for (int i = 0; i < colSize; i++) {
+    for (size_t i = 0; i < colSize; i++) {
         node->value = newValues[i];
         node = node->right;
     }
-
-    return row;
 }
 
 template <typename T>
@@ -227,24 +243,25 @@ void Dlx<T>::setRow(T *rowKey, vector<bool> newValues) {
         node = node->down;
     }
 
-    for (int i = 0; i < colSize; i++) {
+    for (size_t i = 0; i < colSize; i++) {
         node->value = newValues[i];
         node = node->right;
     }
-
-    return row;
 }
 
+#pragma endregion
+
+#pragma region Col Getters and Setters
 template <typename T>
 vector<bool>& Dlx<T>::getCol(int index) {
     Node *node = startNode;
     vector<bool> col(colSize);
 
-    for (int i = 0; i < index; i++) {
+    for (size_t i = 0; i < index; i++) {
         node = node->right;
     }
 
-    for (int i = 0; i < colSize; i++) {
+    for (size_t i = 0; i < colSize; i++) {
         col[i] = node->value;
         node = node->down;
     }
@@ -253,50 +270,185 @@ vector<bool>& Dlx<T>::getCol(int index) {
 }
 
 template <typename T>
-vector<bool> Dlx<T>::getCol(T *colKey) {
-    for (size_t j = 0; j < nodeMatrix[0].size(); ++j) {
-        if (nodeMatrix[0][j]->colKeys == colKey) return getCol(j);
+vector<bool>& Dlx<T>::getCol(T *colKey) {
+    Node *node = startNode;
+    vector<bool> col(colSize);
+
+    while (node->colKey == colKey) {
+        node = node->right;
     }
-    return vector<bool>();
+
+    for (size_t i = 0; i < colSize; i++) {
+        col[i] = node->value;
+        node = node->down;
+    }
+
+    return col;
 }
 
 template <typename T>
 void Dlx<T>::setCol(int index, vector<bool> newValues) {
-    for (size_t i = 0; i < nodeMatrix.size(); ++i) {
-        nodeMatrix[i][index]->value = newValues[i];
+    Node *node = startNode;
+    vector<bool> col(colSize);
+
+    for (size_t i = 0; i < index; i++) {
+        node = node->right;
+    }
+
+    for (size_t i = 0; i < colSize; i++) {
+        node->value = newValues[i];
+        node = node->down;
     }
 }
 
 template <typename T>
 void Dlx<T>::setCol(T *colKey, vector<bool> newValues) {
-    for (size_t j = 0; j < nodeMatrix[0].size(); ++j) {
-        if (nodeMatrix[0][j]->colKeys == colKey) {
-            setCol(j, newValues);
-            return;
+    Node *node = startNode;
+    vector<bool> col(colSize);
+
+    while (node->colKey == colKey) {
+        node = node->right;
+    }
+
+    for (size_t i = 0; i < colSize; i++) {
+        node->value = newValues[i];
+        node = node->down;
+    }
+}
+
+#pragma endregion
+
+#pragma region Cell Getters and Setters
+
+template <typename T>
+bool Dlx<T>::getCell(int row, int col) {
+    Node *node = startNode;
+
+    for (size_t i = 0; i < row; i++) {
+        node = node->down;
+    }
+
+    for (size_t i = 0; i < col; i++) {
+        node = node->right;
+    }
+
+    return node->value;
+}
+
+template <typename T>
+bool Dlx<T>::getCell(T *rowKey, T *colKey) {
+    Node *node = startNode;
+
+    while (node->rowKey != rowKey) {
+        node = node->down;
+    }
+
+    while (node->colKey != colKey) {
+        node = node->right;
+    }
+
+    return node->value;
+}
+
+template <typename T>
+void Dlx<T>::setCell(int row, int col, bool value) {
+    Node *node = startNode;
+
+    for (size_t i = 0; i < row; i++) {
+        node = node->down;
+    }
+
+    for (size_t i = 0; i < col; i++) {
+        node = node->right;
+    }
+
+    node->value = value;
+}
+
+template <typename T>
+void Dlx<T>::setCell(T *rowKey, T *colKey, bool value) {
+    Node *node = startNode;
+
+    while (node->rowKey != rowKey) {
+        node = node->down;
+    }
+
+    while (node->colKey != colKey) {
+        node = node->right;
+    }
+
+    node->value = value;
+}
+
+#pragma endregion
+
+#pragma region Checkpoint
+
+template <typename T>
+void Dlx<T>::checkpoint() {
+    deleteStep++;
+}
+
+template <typename T>
+void Dlx<T>::returnToLastCheckpoint() {
+    deleteStep--;
+    std::set<Node::DeleteReason*> needToReturn;
+
+    size_t rSize = nodeMatrix.size();
+    size_t cSize = nodeMatrix[0].size();
+
+    for (size_t i = 0; i < rSize; i++) {
+        for (size_t j = 0; j < cSize; j++) {
+            Node *node = nodeMatrix[i][j];
+
+            if (node->deleteStep == deleteStep) {
+                if (node->up != nullptr) {
+                    node->up->down = node;
+                }
+
+                if (node->right != nullptr) {
+                    node->right->left = node;
+                }
+
+                if (node->down != nullptr) {
+                    node->down->up = node;
+                }
+
+                if (node->left != nullptr) {
+                    node->left->right = node;
+                }
+
+                node->deleteStep = -1;
+                needToReturn.insert(node->deleteReason);
+            }
+        }
+    }
+
+    for (Node::DeleteReason *reason : needToReturn) {
+        switch (*reason) {
+            case Node::ROW_DELETE:
+            rowSize++;
+            break;
+            case Node::COL_DELETE:
+            colSize++;
+            break;
         }
     }
 }
 
-template <typename T>
-void Dlx<T>::checkpoint() {
-    // Здесь можно реализовать сохранение текущего состояния
-}
+#pragma endregion
 
-template <typename T>
-void Dlx<T>::returnToLastCheckPoint() {
-    // Здесь можно реализовать возврат к последнему сохранённому состоянию
-}
+#pragma region Copy
 
 template <typename T>
 Dlx<T>& Dlx<T>::copy() {
-    // Создаём глубокую копию
     vector<T*> rowKeys;
     vector<T*> colKeys;
     vector<vector<bool>> matrixValues;
 
-    for (auto &row : nodeMatrix) {
+    for (vector<Node*> &row : nodeMatrix) {
         vector<bool> rowVals;
-        for (auto &node : row) {
+        for (Node *node : row) {
             rowVals.push_back(node->value);
         }
         matrixValues.push_back(rowVals);
@@ -307,6 +459,8 @@ Dlx<T>& Dlx<T>::copy() {
         colKeys.push_back(node->colKeys);
     }
 
-    Dlx<T> *newDlx = new Dlx<T>(rowKeys, &colKeys, matrixValues);
+    Dlx<T> *newDlx = new Dlx<T>(rowKeys, colKeys, matrixValues);
     return *newDlx;
 }
+
+#pragma endregion
