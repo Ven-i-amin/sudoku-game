@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "src/solver/dlx.cpp"
+#include "src/solver/dlx.tpp"
 
 using std::vector;
 
